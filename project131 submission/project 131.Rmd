@@ -1,0 +1,707 @@
+---
+title: "Project 131"
+output: html_document
+---
+
+## Introduction
+
+   Employees are the valuable assets of any organization or enterprise, they can create huge profits for the organization or enterprise. If an enterprise wants to develop better, it must find a way how to retain employees and reduce employee attrition. Employee attrition can be for voluntary or involuntary reasons, such as retirement, as well as resignation and contract termination.  
+   If a lot of employees leave for involuntary reasons, it can damage a company's reputation, cost it valuable time and money, and lead to low morale among employees.  
+   It is important for any enterprise or organization to monitor employee attrition rate and understand why employees leave if the enterprise or organization want to avoid negative impacts.  
+   In this project, the IBM HR Employee Attrition data is used to analyzed various factors that lead to employee attrition from the company and predict the attrition of an employee based on the various variables given and different models. The data can be downloaded from Kaggle. The url is shown as below:  
+https://www.kaggle.com/datasets/noordeen/employee-attrition  
+   The IBM HR Employee Attrition data contains 1470 cases and 35 variables related to the employees’ features. Each case represents an employee. The dependent variable (Y) is Attrition, means Employee leaving the company (0=no,1=yes). The other 34 variables are chosen as independent variables (X) to explain and predict the dependent variable Attrition (Y).  
+   As this project focuses on the classification problem, we use "Accuracy" as the summary metric to select the optimal model.  
+   Once we have an optimal classification model, an enterprise or organization like IBM can predict and implement solutions to reduce employee attrition and stabilize work culture.  
+   
+
+
+
+
+## Loading  Packages and Data
+
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(lubridate)
+library(dplyr)
+library(ggplot2)
+library(readr)
+library(GGally)
+library(ISLR)
+library(tree)
+library(MASS)
+library(randomForest)
+library(boot)
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(gbm)
+library(tidymodels)
+```
+
+
+
+
+```{r, warning=FALSE, message=FALSE}
+#load data
+EmployeeData<-read_csv("HR-Employee-Attrition.csv")
+
+```
+
+
+The detailed description of all the variables in the data is shown as below:  
+**Age**:	Age of Employee  
+**Attrition**:	Employee leaving the company (0=no,1=yes)  
+**Business Travel**:	Employee traveling level (1=No Travel, 2=Travel Frequently, 3=Tavel Rarely)  
+**Daily Rate**:	Salary level of employee  
+**Department**:	Department of Employee (1=HR, 2=R&D, 3=Sales)  
+**Distance From Home**:	The distance from work to home  
+**Education**:	Employee's education level (1= Below College, 2= College, 3= Bachelor, 4= Master, 5= Doctor)  
+**Education Field**: Employee's field of Education (1=HR, 2=LIFE SCIENCES, 3=MARKETING, 4=MEDICAL SCIENCES, 5=OTHERS, 6= TEHCNICAL)  
+**Employee Count**:	Count of Employee  
+**Employee Number**:	Employee ID  
+**Environment Satisfaction**:	Satisfaction with Environment (1=Low, 2=Medium ,3=High, 4=Very,5= High)  
+**Gender**:	Employee Gender (1=FEMALE, 2=MALE)
+**Hourly Rate**:	Employee Hourly Salary  
+**Job Involvement**:	Job involvement (1=Low ,2=Medium, 3=High, 4=Very High)  
+**Job Level**:	Employee's level of job  
+**Job Role**:	Employee's Job Role (1=HC REP, 2=HR, 3=LAB TECHNICIAN, 4=MANAGER, 5= MANAGING DIRECTOR, 6= REASEARCH DIRECTOR, 7= RESEARCH SCIENTIST, 8=SALES EXECUTIEVE, 9= SALES REPRESENTATIVE)  
+**Job Satisfaction**:	Employees Job Satisfaction (1=Low, 2=Medium, 3=High, 4=Very High)  
+**Martial Status**:	Employee's Martial Status (1=DIVORCED, 2=MARRIED, 3=SINGLE)
+Monthly Rate	Employee's Monthly salary  
+**Monthly Income**: Employee's Monthly Income
+**NumCompanies**: Worked	No. of companies worked at  
+**Over 18**:	Is employee 18 years old? (1=Yes, 2=No)  
+**Overtime**:	Does employee work overtime? (1=No, 2=Yes)  
+**Percent Salary Hike**:	Employee's percentage increase in salary  
+**Performance Rating**:	Employee's performance rating (1=Low, 2=Good, 3=Excellent, 4=Outstanding)  
+**Relations Satisfaction**:	Employee's relations satisfaction (1=Low, 2=Medium, 3=High, 4=Very High)  
+**Standard Hours**:	Employee's Standard working hours  
+**Stock Options Level**:	Employee's stock options  
+**Total Working Years**:	Employee total years worked  
+**Training Times Last Year**:	Employee training hours  
+**Work Life Balance**:	Employee's time spent between work and outside (1=Bad, 2=Good,3=Better, 4=Best)  
+**Years at company**:	Employee's total nuber of years at company  
+**Years in Current Role**:	Employee's number of years in current role  
+**Years since Last Promotion**:	Number of years since last promotion  
+**Years with Current Manager**:	Number of years spent with current manager    
+
+The description of these columns is also shown in the codebook.  
+
+
+## Data Cleaning  
+
+Check if there are any NA values in the data. As is shown below, there is no missing value in all the variables.  
+
+
+```{r, warning=FALSE, message=FALSE}
+apply(is.na(EmployeeData), MARGIN = 2, sum)
+
+```
+
+
+
+```{r, warning=FALSE, message=FALSE}
+#convert numeric variables to factors
+colnames(select_if(EmployeeData,is.character))
+
+```
+
+The class attributes of the above 9 variables are character. Convert these class attributes from numeric to factor.   
+
+
+
+```{r, warning=FALSE, message=FALSE}
+#convert numeric variables to factors
+EmployeeData$BusinessTravel<-factor(EmployeeData$BusinessTravel)
+EmployeeData$Department<-factor(EmployeeData$Department)
+EmployeeData$EducationField<-factor(EmployeeData$EducationField)
+EmployeeData$Gender<-factor(EmployeeData$Gender)
+EmployeeData$JobRole<-factor(EmployeeData$JobRole)
+EmployeeData$MaritalStatus<-factor(EmployeeData$MaritalStatus)
+EmployeeData$Over18<-factor(EmployeeData$Over18)
+EmployeeData$OverTime<-factor(EmployeeData$OverTime)
+
+```
+
+
+
+After transformation, the class attribute of each variable is shown as below. It can be observed that there are numeric variables and factor variables only.  
+
+
+```{r, warning=FALSE, message=FALSE}
+str(EmployeeData)
+
+```
+
+
+
+## EDA  
+
+In this section, perform exploratory data analysis on the data.  
+
+First, explore the relationship between Employee Attrition (Attrition) and Salary level of employee (DailyRate). Use boxplot to compare the Salary level between two groups leaving (Yes) and not leaving (No), which is shown as below.  
+It can be observed that the Salary level of not leaving the company is a bit higher than the Salary level of leaving the company. Therefore, we can infer that dissatisfaction with salary level may be one of the reasons for employees to leave the company.  
+
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=4, fig.width=5}
+#explore relationship between Attrition and Daily Rate
+EmployeeData%>%
+  ggplot(aes(x = Attrition, y = DailyRate))+
+  geom_point(color="orange", position="jitter", alpha=.5) +
+  geom_boxplot(aes(fill = Attrition)) +
+  labs(title="Attrition vs Daily Rate")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+
+Then, explore the relationship between Employee Attrition (Attrition) and Employee's education level (1= Below College, 2= College, 3= Bachelor, 4= Master, 5= Doctor). Calculate the number of employees according to their education level and whether levaing the company. The summary table is shown as below.  
+
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=4, fig.width=5}
+#explore relationship between Attrition and Education
+Education_df<-EmployeeData%>%
+  group_by(Attrition, Education)%>%
+  summarise(totalnum=n())
+
+Education_df
+
+```
+
+
+Plot the above table in a histogram, which is shown as below. We can observe that the number of employees with a bachelor's degree is the highest, the number of employees with a master's degree is the second highest, and the number of employees with a college degree is next. The number of employees who leave the company among different education levels are all very low. There is not a significant relation between employee's education level and whether they leave the company.  
+
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=4, fig.width=7}
+#explore 
+Education_df%>%
+  ggplot(aes(x=Education, y=totalnum, fill=Attrition))+
+  geom_bar(stat = "identity",position = "dodge")+
+  theme_bw()+
+  labs(title="Attrition vs Education")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+Next, explore the relationship among Employee's education level, Employee Attrition (Attrition) and Salary level of employee (DailyRate). Generate a boxplot using these three variables, which is shown as below.  
+
+It can be observed that there is no significant difference in the salary level of employees among different levels of education. When the education level is the same, the salary level of employees who not leaving the company are a bit higher than the salary level of employees who leaving the company. Thus, we can infer that unsatisfied with salary level is one of the reasons for employees leaving the company.  
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=4, fig.width=7}
+
+EmployeeData%>%
+  ggplot(aes(x = as.factor(Education), y = DailyRate, fill=Attrition))+ 
+  geom_boxplot()+
+  xlab("Education")+
+  ylab("Daily Rate")+
+  geom_point(color="orange", position="jitter", alpha=.1) +
+  labs(title="Education vs Daily Rate")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+Then, explore the relationship between Employees Job Satisfaction (1=Low, 2=Medium, 3=High, 4=Very High) and Employee Attrition (Attrition). Calculate the number of employees according to their job satisfaction level and whether levaing the company. The summary table is shown as below.  
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=4, fig.width=5}
+
+Job_Stf_df<-EmployeeData%>%
+  group_by(Attrition, JobSatisfaction)%>%
+  summarise(totalnum=n())
+
+Job_Stf_df
+
+```
+
+
+Plot the result in a histogram, which is shown as below. It can be observed that the number of employees who have a very high job satisfaction is the highest, the number of employees who have a high job satisfaction is the second highest, and the number of employees who have medium and low job satisfaction are the next. In the medium and low job satisfaction groups, the number of employees who leave the company are very high. Thus, we can infer that low job satisfaction may cause employees to leave the company.  
+
+
+
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=4, fig.width=6}
+#explore 
+Job_Stf_df%>%
+  ggplot(aes(x=JobSatisfaction, y=totalnum, fill=Attrition))+
+  geom_bar(stat = "identity",position = "dodge")+
+  theme_bw()+
+  labs(title="Attrition vs Job Satisfaction")+
+  xlab("Job Satisfaction")+
+  ylab("Total number")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+
+Next, explore the relationship between Employee Hourly Salary (HourlyRate) and Department of employee (1=HR, 2=R&D, 3=Sales). Generate the density plot of Hourly Salary among different departments, as is shown as below.  
+It can be observed that the hourly salary of R&D is highest, the hourly salary of sales is the second highest and the hourly salary of HR is the lowest.  
+
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=4, fig.width=8}
+
+EmployeeData%>%
+  ggplot(aes(x=HourlyRate,  fill=Department))+
+  geom_density(alpha=.3)+
+  theme_bw()+
+  labs(title="Hourly Rate vs Department")+
+  xlab("Hourly Rate")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+Finally,  explore the relationship among Employee's gender, Employee Attrition (Attrition) and Employee's Monthly salary (MonthlyRate). Generate a boxplot using these three variables, which is shown as below.  It can be observed that there is no significant difference in the Employee's Monthly salary level between male and female. There is also no significant difference in whether Employee leaving the company between male and female.  
+
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=4, fig.width=5}
+#explore 
+EmployeeData%>%
+  ggplot(aes(x = Gender, y = MonthlyRate, fill=Attrition))+ 
+  geom_boxplot()+
+  xlab("Gender")+
+  ylab("Monthly Rate")+
+  geom_point(color="orange", position="jitter", alpha=.1) +
+  labs(title="Gender vs Monthly Rate")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+
+
+
+
+## Feature Extraction
+
+Use one-hot encoding technique to convert the eight categorical factors "Attrition", "BusinessTravel", Department", "EducationField", "Gender", "JobRole", "MaritalStatus", "OverTime" as new numeric variables.  
+
+After transformation, there are 55 variables in total. The first 6 rows of the new data is shown as below.  
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=4, fig.width=5}
+
+Subset_numeric<-select_if(EmployeeData,is.numeric)
+
+BusinessTravel_df<-model.matrix(~BusinessTravel-1,EmployeeData) %>% as.data.frame()
+Department_df<-model.matrix(~Department-1,EmployeeData) %>% as.data.frame()
+EducationField_df<-model.matrix(~EducationField-1,EmployeeData) %>%as.data.frame()
+Gender_df<-model.matrix(~Gender-1,EmployeeData) %>% as.data.frame()
+JobRole_df<-model.matrix(~JobRole-1,EmployeeData) %>% as.data.frame()
+MaritalStatus_df<-model.matrix(~MaritalStatus-1,EmployeeData) %>% as.data.frame()
+OverTime_df<-model.matrix(~OverTime-1,EmployeeData) %>% as.data.frame()
+
+EmployeeNew<-cbind(Subset_numeric, BusinessTravel_df, Department_df,
+                    EducationField_df, Gender_df, JobRole_df, 
+                    MaritalStatus_df, OverTime_df)
+
+EmployeeNew$Attrition<-EmployeeData$Attrition
+
+dim(EmployeeNew)
+head(EmployeeNew)
+
+```
+
+
+## Data Splitting  
+
+
+The new data is split into a 70% training subset data and a 30% testing subset data. Stratified sampling is used according to the dependent variable Attrition (Y).
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=4, fig.width=5}
+
+EmployeeNew_split <- EmployeeNew %>% 
+  initial_split(prop = 0.7, strata = "Attrition")
+
+EmployeeNew_train <- training(EmployeeNew_split)
+EmployeeNew_test <- testing(EmployeeNew_split)
+
+```
+
+
+## Model Fitting  
+
+In this section, four models **Random Forest**, **Gradient Boosting model**, **Least Squares SVM** and **Model Averaged Neural Network** are fit on the training subset using 10-fold cross-validation method. For each model fitting, different tuning parameters are used and the best tuning parameter is chosen according to the "Accuracy" metric as this project focuses on a classification problem.   
+
+After choosing the best tuning parameter for each model, we will use the model to predict the Employee Attrition on the testing subset. Compare the predicted values with the actual values, we can calculate the "Accuracy" on the testing subset for all the four models and find out the optimal model in this project.
+
+
+
+
+
+#### Random Forest  
+
+First, fit the Random Forest model on the training data using 10-fold cross-validation method. The tuning parameter of Random Forest model I use is **mtry**, which is set from 10 to 20.  
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=4, fig.width=5}
+#train
+set.seed(7321)
+
+tc_10<-trainControl(method="cv", 
+                    number=10)
+
+tg <- expand.grid(mtry=10:20)
+
+mod.rf <- train(as.factor(Attrition) ~ ., 
+                 metric = "Accuracy", 
+                 method = "rf",
+                 trControl = tc_10,
+                 tuneGrid = tg,
+                 data = EmployeeNew_train)
+
+```
+
+
+Extract the accuracy percentages and standard deviations for each cv and each mtry, and the result is shown as below. It can be obseved that when mtry is 10, accuracy is highest.  
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=4, fig.width=5}
+
+result.rf<-data.frame(mtry=c(10:20),
+                      Accuracy=mod.rf$results['Accuracy'],
+                      AccuracySD=mod.rf$results['AccuracySD'],
+                      cv=10)
+
+result.rf
+```
+
+
+Set mtry=10, and use this Random Forest model to predict on the testing data.  
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=4, fig.width=5}
+#predict
+set.seed(7321)
+
+tg <- expand.grid(mtry=10)
+
+mod.rf.pre <- train(as.factor(Attrition) ~ ., 
+                 metric = "Accuracy", 
+                 method = "rf",
+                 tuneGrid = tg,
+                 data = EmployeeNew_train)
+
+```
+
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=4, fig.width=5}
+
+mod.rf.pre$finalModel
+```
+
+
+The feature importance generated by the Random Forest model is shown as below. Higher MeanDecreaseGini value indicates that the variable is important to predict Employee Attrition. We can see that MonthlyIncome, Age, DailyRate, TotalWorkingYears and MonthlyRate are the five most important variables to predict whether Employee will leave the company. 
+
+
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=4, fig.width=5}
+
+importance.df<-data.frame(mod.rf.pre$finalModel$importance)
+importance.df$variables<-rownames(importance.df)
+importance.df[order(importance.df$MeanDecreaseGini, decreasing = TRUE),]
+```
+
+
+
+
+
+For Random Forest model, We can see that the Accuracy on the testing subset is 0.861991.  
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=4, fig.width=5}
+
+
+rf.pre.result<-predict(mod.rf.pre, newdata = EmployeeNew_test) 
+
+mean(EmployeeNew_test$Attrition==rf.pre.result)
+```
+
+
+
+
+#### Gradient Boosting model  
+
+
+Second, fit the Gradient Boosting model on the training data using 10-fold cross-validation method. The tuning parameter of Gradient Boosting model is **n.trees**, which is set 100, 200, 300, 400, 500.  
+
+
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=4, fig.width=5}
+#train
+
+#Gradient Boosting
+
+library(gbm)
+library(plyr)
+set.seed(7321)
+tc_10<-trainControl(method="cv", 
+                    number=10)
+
+tg <- expand.grid(n.trees = c(100,200,300,400,500), 
+                  interaction.depth = 5,
+                  shrinkage = 0.2,
+                  n.minobsinnode = 10)
+
+mod.gb1 <- train(as.factor(Attrition) ~ ., 
+                 metric = "Accuracy", 
+                 method = "gbm",
+                 trControl = tc_10,
+                 tuneGrid = tg,
+                 data = EmployeeNew_train)
+
+
+
+```
+
+
+
+Extract the accuracy percentages and standard deviations for each cv and each n.trees, and the result is shown as below. It can be obseved that when n.trees is 400, accuracy is highest.  
+
+
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=4, fig.width=5}
+
+result.gb1<-data.frame(n.trees = c(100,200,300,400,500),
+                      Accuracy=mod.gb1$results['Accuracy'],
+                      AccuracySD=mod.gb1$results['AccuracySD'],
+                      cv=10)
+
+result.gb1
+```
+
+Set n.trees = 400, and use this Gradient Boosting model to predict on the testing data.  
+
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=4, fig.width=5}
+#predict
+set.seed(7321)
+
+tg <- expand.grid(n.trees = 400, 
+                  interaction.depth = 5,
+                  shrinkage = 0.2,
+                  n.minobsinnode = 10)
+
+
+mod.gbl.pre <- train(as.factor(Attrition) ~ ., 
+                 metric = "Accuracy", 
+                 method = "gbm",
+                 tuneGrid = tg,
+                 data = EmployeeNew_train)
+
+
+
+```
+
+
+For Gradient Boosting model, We can see that the Accuracy on the testing subset is 0.8665158.  
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=4, fig.width=5}
+
+
+gbl.pre.result<-predict(mod.gbl.pre, newdata = EmployeeNew_test) 
+mean(EmployeeNew_test$Attrition==gbl.pre.result)
+
+```
+
+
+
+#### Least Squares Support Vector Machine with Radial Basis Function Kernel 
+
+
+Third, fit the Least Squares Support Vector Machine model with Radial Basis Function Kernel on the training data using 10-fold cross-validation method. The tuning parameter of this model is **tau**, which is set 0, 0.5, 1, 5, 10.  
+
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=4, fig.width=5}
+library(kernlab)
+#train
+
+#Least Squares Support Vector Machine
+
+set.seed(7321)
+tc_10<-trainControl(method="cv", 
+                    number=10)
+
+tg <- expand.grid(tau = c(0, 0.5, 1, 5, 10),
+                  sigma=1)
+
+mod.svm <- train(as.factor(Attrition) ~ ., 
+                 metric = "Accuracy", 
+                 method = "lssvmRadial",
+                 trControl = tc_10,
+                 tuneGrid = tg,
+                 data = EmployeeNew_train)
+
+
+
+```
+
+
+Extract the accuracy percentages and standard deviations for each cv and each tau, and the result is shown as below. It can be observed that for all different tau, accuracy is the same.
+
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=4, fig.width=5}
+
+result.svm<-data.frame(tau = c(0, 0.5, 1, 5, 10),
+                      Accuracy=mod.svm$results['Accuracy'],
+                      AccuracySD=mod.svm$results['AccuracySD'],
+                      cv=10)
+
+result.svm
+```
+
+Set tau = 1, and use this Least Squares SVM model to predict on the testing data.  
+
+
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=4, fig.width=5}
+#predict
+set.seed(7321)
+
+tg <- expand.grid(tau = 1, sigma=1)
+
+
+mod.svm.pre <- train(as.factor(Attrition) ~ ., 
+                 metric = "Accuracy", 
+                 method = "lssvmRadial",
+                 tuneGrid = tg,
+                 data = EmployeeNew_train)
+
+
+
+```
+
+
+For this Least Squares SVM model, We can see that the Accuracy on the testing subset is 0.8371041. 
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=4, fig.width=5}
+
+
+svm.pre.result<-predict(mod.svm.pre, newdata = EmployeeNew_test) 
+mean(EmployeeNew_test$Attrition==svm.pre.result)
+
+```
+
+
+
+#### Model Averaged Neural Network  
+
+
+Finally, fit the Averaged Neural Network model on the training data using 10-fold cross-validation method. The tuning parameter of this model is **size**, which is set 3, 4, 5, 6, 7.  
+
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=4, fig.width=5}
+library(nnet)
+#train
+
+#Model Averaged Neural Network
+
+set.seed(7321)
+tc_10<-trainControl(method="cv", 
+                    number=10)
+
+tg <- expand.grid(size = c(3, 4, 5, 6, 7),
+                  decay=0,
+                  bag=FALSE)
+
+mod.nn <- train(as.factor(Attrition) ~ ., 
+                 metric = "Accuracy", 
+                 method = "avNNet",
+                 trControl = tc_10,
+                 tuneGrid = tg,
+                 data = EmployeeNew_train)
+
+
+
+```
+
+
+Extract the accuracy percentages and standard deviations for each cv and each size, and the result is shown as below. It can be observed that for all different size, accuracy is the same.
+
+
+
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=4, fig.width=5}
+
+result.nn<-data.frame(size = c(3, 4, 5, 6, 7),
+                      Accuracy=mod.nn$results['Accuracy'],
+                      AccuracySD=mod.nn$results['AccuracySD'],
+                      cv=10)
+
+result.nn
+```
+
+Set size= 3, and use this Averaged Neural Network model to predict on the testing data.  
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=4, fig.width=5}
+#predict
+set.seed(7321)
+
+tg <- expand.grid(size = 3,
+                  decay=0,
+                  bag=FALSE)
+
+
+mod.nn.pre <- train(as.factor(Attrition) ~ ., 
+                 metric = "Accuracy", 
+                 method = "avNNet",
+                 tuneGrid = tg,
+                 data = EmployeeNew_train)
+
+```
+
+For this Averaged Neural Network model, We can see that the Accuracy on the testing subset is 0.8371041. 
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=4, fig.width=5}
+
+
+nn.pre.result<-predict(mod.nn.pre, newdata = EmployeeNew_test) 
+mean(EmployeeNew_test$Attrition==nn.pre.result)
+
+```
+
+
+
+## Result & conclusion 
+
+For all the 4 models, compare the accuracy on the testing subset, which is shown as below. We can conclude that the accuracy of Gradient Boosting model is the highest. Thus, Gradient Boosting is the optimal model to predict Attrition of Employee in this project.  
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=4, fig.width=5}
+
+
+result_df<-data.frame(method=c("Random Forest",
+                               "Gradient Boosting",
+                               "Least Squares SVM",
+                               "Model Averaged Neural Network"),
+                      accuracy=c(mean(EmployeeNew_test$Attrition==rf.pre.result), 
+                                 mean(EmployeeNew_test$Attrition==gbl.pre.result),
+                                 mean(EmployeeNew_test$Attrition==svm.pre.result), 
+                                 mean(EmployeeNew_test$Attrition==nn.pre.result)))
+
+result_df
+```
+
+
+By Using EDA and random forest techniques, we also find out the key factors of an employee's attrition. Monthly Income, Age, Salary level of employee, Employee total years worked, Employee's Monthly salary are the five most important variables to predict whether Employee will leave the company. 
+
